@@ -347,7 +347,9 @@ dependencies = [
     { name = "openai" },
     { name = "openai-agents" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "sse-starlette" },
 ]
 
 [package.metadata]
@@ -358,7 +360,9 @@ requires-dist = [
     { name = "openai", specifier = ">=2.44.0" },
     { name = "openai-agents", specifier = ">=0.17.7" },
     { name = "pydantic", specifier = ">=2.13.4" },
+    { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "sse-starlette", specifier = ">=3.4.5" },
 ]
 
 [[package]]
