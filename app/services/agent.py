@@ -1,5 +1,7 @@
 from agents import Agent, Runner
 
+from app.schemas.chat import ChatMessage
+from app.services._messages import to_responses_input
 from app.services.openai_client import get_async_client
 
 MODEL = "gpt-4o-mini"
@@ -10,8 +12,9 @@ MODEL = "gpt-4o-mini"
 _AGENT_INSTRUCTIONS = "You answer history questions clearly and concisely."
 
 
-async def run_agent(message: str) -> str:
-    """Run the History tutor agent on `message` and return its final output."""
+async def run_agent(messages: list[ChatMessage]) -> str:
+    """Run the History tutor agent on the full conversation history and
+    return its final output."""
     # Touch the shared client so we fail fast if OPENAI_API_KEY is missing.
     _ = get_async_client()
 
@@ -20,5 +23,5 @@ async def run_agent(message: str) -> str:
         instructions=_AGENT_INSTRUCTIONS,
         model=MODEL,
     )
-    result = await Runner.run(agent, message)
+    result = await Runner.run(agent, to_responses_input(messages))
     return result.final_output

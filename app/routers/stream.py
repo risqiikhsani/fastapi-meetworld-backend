@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("/chat/stream", summary="Stream a chat response via SSE")
 async def stream_endpoint(payload: ChatRequest) -> EventSourceResponse:
     async def event_source() -> AsyncIterator[dict]:
-        async for chunk in stream_service.stream_chat(payload.message):
+        async for chunk in stream_service.stream_chat(payload.messages):
             yield chunk
 
     return EventSourceResponse(event_source())

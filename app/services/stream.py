@@ -1,12 +1,14 @@
 import json
 from collections.abc import AsyncIterator
 
+from app.schemas.chat import ChatMessage
+from app.services._messages import to_responses_input
 from app.services.openai_client import get_async_client
 
 MODEL = "gpt-4o-mini"
 
 
-async def stream_chat(message: str) -> AsyncIterator[dict]:
+async def stream_chat(messages: list[ChatMessage]) -> AsyncIterator[dict]:
     """Yield SSE-shaped dicts for a streaming Responses API call.
 
     Each text delta is emitted as:
@@ -17,7 +19,7 @@ async def stream_chat(message: str) -> AsyncIterator[dict]:
     client = get_async_client()
     stream = await client.responses.create(
         model=MODEL,
-        input=message,
+        input=to_responses_input(messages),
         stream=True,
     )
     async for event in stream:

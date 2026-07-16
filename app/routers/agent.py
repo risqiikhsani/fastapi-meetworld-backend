@@ -8,4 +8,4 @@ router = APIRouter()
 
 @router.post("/agent", response_model=ChatResponse, summary="Run the History tutor agent")
 async def agent_endpoint(payload: ChatRequest) -> ChatResponse:
-    return ChatResponse(response=await agent_service.run_agent(payload.message))
+    return ChatResponse(response=await agent_service.run_agent(payload.messages))

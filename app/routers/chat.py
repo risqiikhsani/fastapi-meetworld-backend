@@ -8,4 +8,4 @@ router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse, summary="Chat with AI")
 async def chat_endpoint(payload: ChatRequest) -> ChatResponse:
-    return ChatResponse(response=await chat_service.chat(payload.message))
+    return ChatResponse(response=await chat_service.chat(payload.messages))
