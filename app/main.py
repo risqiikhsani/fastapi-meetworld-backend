@@ -34,7 +34,7 @@ def _dump_openapi_schema(app: FastAPI) -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Load .env, validate settings, then emit openapi.json for the frontend."""
     load_dotenv()
-    get_settings()  # raises fast if OPENAI_API_KEY is missing
+    get_settings()  # raises fast if OPENAI_API_KEY or JWT_SECRET is missing
     _dump_openapi_schema(app)
     yield
 
