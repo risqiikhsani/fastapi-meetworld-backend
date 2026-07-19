@@ -1,0 +1,130 @@
+name: deploy-dev
+
+on:
+  push:
+    branches: [dev]
+  # Manual re-run without pushing a new commit (e.g. to re-deploy after a
+  # Cloud Run service was deleted or env vars were updated out-of-band).
+  workflow_dispatch:
+
+# Dev moves fast — cancel any in-flight deploy when a new commit lands.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: asia-southeast1
+  IMAGE: asia-southeast1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/meetworld-backend-py/app
+  SERVICE: meetworld-backend-py-dev
+  TAG: dev
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          ## use this if you use Workload Identity Federation (WIF)
+          # workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          # service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud --quiet auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=dev
+            type=sha,prefix=dev-,format=short
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          ## use this if you use Workload Identity Federation (WIF)
+          # workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          # service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy revision
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image="$IMAGE:$TAG" \
+            --region="$REGION" \
+            --platform=managed \
+            --allow-unauthenticated
+
+  # Confirms the freshly-deployed revision actually serves traffic. gcloud
+  # run deploy returns success as soon as the revision is registered; if the
+  # container crashes on startup (env var typo, bad import, etc.) the deploy
+  # silently "succeeds". This step catches that before anyone hits the URL.
+  smoke-test:
+    name: Smoke test (health endpoint)
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - id: url
+        name: Resolve deployed service URL
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" \
+            --format='value(status.url)')
+          if [ -z "$URL" ]; then
+            echo "::error::Failed to resolve service URL"
+            exit 1
+          fi
+          echo "service-url=$URL" >> "$GITHUB_OUTPUT"
+
+      # FastAPI exposes the health probe at `GET /` (see app/main.py:62),
+      # not /api/health.
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 10 "${{ steps.url.outputs.service-url }}/"; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::Health check failed after 6 attempts"
+          exit 1

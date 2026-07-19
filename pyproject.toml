@@ -15,4 +15,5 @@ dependencies = [
     "pyjwt>=2.10.0",
     "python-dotenv>=1.2.2",
     "sse-starlette>=3.4.5",
+    "uvicorn>=0.50.0",
 ]
