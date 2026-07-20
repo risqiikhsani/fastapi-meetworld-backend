@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.routers import agent as agent_router
 from app.routers import chat as chat_router
 from app.routers import grammar as grammar_router
+from app.routers import health as health_router
 from app.routers import stream as stream_router
 from app.routers import translate as translate_router
 
@@ -56,6 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(health_router.router, prefix="/api", tags=["health"])
 app.include_router(chat_router.router, prefix="/api", tags=["chat"])
 app.include_router(agent_router.router, prefix="/api", tags=["agent"])
 app.include_router(stream_router.router, prefix="/api", tags=["stream"])
